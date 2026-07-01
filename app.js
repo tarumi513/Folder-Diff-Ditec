@@ -30,6 +30,105 @@ dropzoneB.addEventListener('click', () => inputB.click());
 inputA.addEventListener('change', (e) => handleFileSelect(e, 'A'));
 inputB.addEventListener('change', (e) => handleFileSelect(e, 'B'));
 
+// ドラッグ＆ドロップ関連イベントリスナーの設定
+setupDragAndDrop(dropzoneA, 'A');
+setupDragAndDrop(dropzoneB, 'B');
+
+function setupDragAndDrop(zone, target) {
+  // ドラッグ進入・移動時のデフォルト挙動を抑制してハイライト
+  ['dragenter', 'dragover'].forEach(eventName => {
+    zone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      zone.classList.add('dragover');
+    }, false);
+  });
+
+  // ドラッグ退出時のデフォルト挙動を抑制してハイライト解除
+  ['dragleave', 'drop'].forEach(eventName => {
+    zone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+    }, false);
+  });
+
+  // ドロップ時のファイル解析
+  zone.addEventListener('drop', async (e) => {
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    statusBar.innerText = `${target === 'A' ? 'フォルダ A' : 'フォルダ B'} をスキャン中...`;
+    
+    // 最初のアイテムをエントリ（ファイルまたはディレクトリ）として取得
+    const item = items[0].webkitGetAsEntry();
+    if (!item) return;
+
+    if (item.isDirectory) {
+      // フォルダ名をルートフォルダ名にする
+      const rootName = item.name;
+      const fileDataList = await scanDirectory(item, "");
+
+      if (target === 'A') {
+        filesA = fileDataList;
+        nameA = rootName;
+        labelA.innerText = `A: ${rootName}`;
+        zone.classList.add('loaded');
+        zone.querySelector('p').innerHTML = `${filesA.length} 個のファイルが読み込まれました`;
+      } else {
+        filesB = fileDataList;
+        nameB = rootName;
+        labelB.innerText = `B: ${rootName}`;
+        zone.classList.add('loaded');
+        zone.querySelector('p').innerHTML = `${filesB.length} 個のファイルが読み込まれました`;
+      }
+      statusBar.innerText = `${rootName} の読み込みが完了しました。`;
+      checkReadyState();
+    } else {
+      statusBar.innerText = '⚠ フォルダをドロップしてください（ファイル単体は比較できません）。';
+    }
+  }, false);
+}
+
+// FileSystemDirectoryEntry を再帰的にスキャンしてファイル名・相対パス・サイズを収集する関数
+async function scanDirectory(dirEntry, path = "") {
+  return new Promise((resolve) => {
+    const dirReader = dirEntry.createReader();
+    const allEntries = [];
+
+    // readEntriesは一度に全てを返さないことがあるため、空配列が返るまで再帰的に読み込む
+    const readAll = () => {
+      dirReader.readEntries(async (entries) => {
+        if (entries.length === 0) {
+          // すべてのエントリの解析プロミスを作成
+          const promises = allEntries.map(entry => {
+            if (entry.isFile) {
+              return new Promise((resFile) => {
+                entry.file((file) => {
+                  resFile([{
+                    name: file.name,
+                    relPath: path + file.name,
+                    size: file.size
+                  }]);
+                });
+              });
+            } else if (entry.isDirectory) {
+              // サブディレクトリ内を再帰スキャン
+              return scanDirectory(entry, path + entry.name + "/");
+            }
+            return Promise.resolve([]);
+          });
+
+          const results = await Promise.all(promises);
+          resolve(results.flat());
+        } else {
+          allEntries.push(...entries);
+          readAll();
+        }
+      });
+    };
+    readAll();
+  });
+}
+
 function handleFileSelect(event, target) {
   const files = Array.from(event.target.files);
   if (files.length === 0) return;

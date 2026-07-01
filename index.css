@@ -112,9 +112,17 @@ header p {
   opacity: 0.3;
 }
 
+.dropzone.dragover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 25px var(--accent-glow);
+  transform: scale(1.02);
+}
+
 .dropzone * {
   position: relative;
   z-index: 1;
+  pointer-events: none; /* ドラッグイベントが子要素に干渉するのを防ぐ */
 }
 
 .dropzone .icon {
@@ -125,16 +133,6 @@ header p {
 
 .dropzone:hover .icon {
   transform: scale(1.1);
-}
-
-.dropzone h3 {
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
-.dropzone p {
-  color: var(--fg-dim);
-  font-size: 0.85rem;
 }
 
 .dropzone input[type="file"] {
@@ -149,6 +147,51 @@ header p {
 
 .dropzone.loaded .icon {
   color: var(--green);
+}
+
+/* Guide Card */
+.guide-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+.guide-card h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--yellow);
+}
+
+.guide-card p {
+  color: var(--fg-dim);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.guide-card ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.guide-card li {
+  position: relative;
+  padding-left: 1.25rem;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.guide-card li::before {
+  content: "•";
+  position: absolute;
+  left: 0.25rem;
+  color: var(--accent);
+  font-weight: bold;
 }
 
 /* Button & Status */

@@ -20,8 +20,8 @@
       <!-- フォルダAのドラッグ＆ドロップ領域 -->
       <div class="dropzone" id="dropzoneA">
         <div class="icon">📁</div>
-        <h3 id="labelA">フォルダ A を選択</h3>
-        <p>クリックしてフォルダを選択</p>
+        <h3 id="labelA">フォルダ A</h3>
+        <p>ここにフォルダをドラッグ＆ドロップ<br>またはクリックして選択</p>
         <!-- webkitdirectory属性でフォルダ選択に対応 -->
         <input type="file" id="inputA" webkitdirectory directory multiple>
       </div>
@@ -29,16 +29,26 @@
       <!-- フォルダBのドラッグ＆ドロップ領域 -->
       <div class="dropzone" id="dropzoneB">
         <div class="icon">📁</div>
-        <h3 id="labelB">フォルダ B を選択</h3>
-        <p>クリックしてフォルダを選択</p>
+        <h3 id="labelB">フォルダ B</h3>
+        <p>ここにフォルダをドラッグ＆ドロップ<br>またはクリックして選択</p>
         <input type="file" id="inputB" webkitdirectory directory multiple>
       </div>
     </main>
 
     <div class="action-area">
       <button class="btn-primary" id="compareBtn" disabled>▶ 比較開始</button>
-      <div class="status-bar" id="statusBar">フォルダ A と フォルダ B をそれぞれ選択してください。</div>
+      <div class="status-bar" id="statusBar">フォルダ A と フォルダ B をそれぞれ指定してください。</div>
     </div>
+
+    <!-- ネットワークフォルダ比較に関するヘルプガイド -->
+    <section class="guide-card">
+      <h4>💡 自社サーバー（NAS / ネットワーク共有フォルダ）を比較するには？</h4>
+      <p>ネットワーク上の共有フォルダも、エクスプローラー上で見えている状態であればローカルフォルダと全く同様に比較が可能です。</p>
+      <ul>
+        <li><strong>方法①（簡単）:</strong> エクスプローラーから自社サーバーの共有フォルダを上記のドラッグ＆ドロップ領域に直接ドロップします。</li>
+        <li><strong>方法②:</strong> 共有フォルダをWindowsの「ネットワークドライブの割り当て」で（Zドライブなどとして）接続しておき、クリック選択ダイアログからそのドライブ内のフォルダを指定します。</li>
+      </ul>
+    </section>
 
     <!-- 結果セクション -->
     <section class="results-card">
