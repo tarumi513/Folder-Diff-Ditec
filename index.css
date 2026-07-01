@@ -1,0 +1,351 @@
+/* modern reset & variables */
+:root {
+  --bg: #0f0f1a;
+  --panel: #181829;
+  --panel-border: rgba(255, 255, 255, 0.05);
+  --accent: #7c6af7;
+  --accent-glow: rgba(124, 106, 247, 0.35);
+  --fg: #cdd6f4;
+  --fg-dim: #7f849c;
+  --red: #f38ba8;
+  --green: #a6e3a1;
+  --yellow: #f9e2af;
+  --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1rem;
+}
+
+.container {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Header */
+header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #a6e3a1, #7c6af7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+header p {
+  color: var(--fg-dim);
+  font-size: 1rem;
+}
+
+/* Folder Selection Panel */
+.selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .selector-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dropzone {
+  background: var(--panel);
+  border: 2px dashed rgba(124, 106, 247, 0.2);
+  border-radius: 16px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.dropzone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  opacity: 0;
+  transition: var(--transition);
+  z-index: 0;
+}
+
+.dropzone:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-2px);
+}
+
+.dropzone:hover::before {
+  opacity: 0.3;
+}
+
+.dropzone * {
+  position: relative;
+  z-index: 1;
+}
+
+.dropzone .icon {
+  font-size: 2.5rem;
+  color: var(--accent);
+  transition: var(--transition);
+}
+
+.dropzone:hover .icon {
+  transform: scale(1.1);
+}
+
+.dropzone h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.dropzone p {
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+}
+
+.dropzone input[type="file"] {
+  display: none;
+}
+
+.dropzone.loaded {
+  border-style: solid;
+  border-color: var(--green);
+  background: rgba(166, 227, 161, 0.02);
+}
+
+.dropzone.loaded .icon {
+  color: var(--green);
+}
+
+/* Button & Status */
+.action-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-primary {
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), #5b46e8);
+  color: white;
+  border: none;
+  padding: 0.85rem 2.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  transition: var(--transition);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--accent-glow);
+  filter: brightness(1.15);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-bar {
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  min-height: 1.5rem;
+  text-align: center;
+}
+
+/* Results Notebook */
+.results-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 1rem;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tab-btn.active {
+  color: white;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  box-shadow: 0 -2px 10px var(--accent);
+}
+
+.tab-btn .badge {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--fg-dim);
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  transition: var(--transition);
+}
+
+.tab-btn.active .badge {
+  background: var(--accent);
+  color: white;
+}
+
+.tab-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: 450px;
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Result Items styling */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.result-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 1rem;
+  transition: var(--transition);
+}
+
+.result-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.filepath {
+  font-family: 'Consolas', monospace;
+  font-size: 0.9rem;
+  word-break: break-all;
+  margin-bottom: 0.35rem;
+}
+
+.result-item.tab-a .filepath { color: var(--red); }
+.result-item.tab-b .filepath { color: var(--green); }
+.result-item.tab-ren .filepath { color: var(--yellow); }
+
+.file-meta {
+  font-size: 0.8rem;
+  color: var(--fg-dim);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.5rem 0;
+}
+
+.rename-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rename-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-dim);
+  margin-right: 0.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--fg-dim);
+  padding: 3rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-state .icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}

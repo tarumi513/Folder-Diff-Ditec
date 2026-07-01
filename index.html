@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>フォルダ差分検知ツール（ファイル容量ベース）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📂 フォルダ差分検知ツール</h1>
+      <p>作成・修正時間に依存せず、ファイル容量（サイズ）で2つのフォルダの差分を検知します</p>
+    </header>
+
+    <main class="selector-grid">
+      <!-- フォルダAのドラッグ＆ドロップ領域 -->
+      <div class="dropzone" id="dropzoneA">
+        <div class="icon">📁</div>
+        <h3 id="labelA">フォルダ A を選択</h3>
+        <p>クリックしてフォルダを選択</p>
+        <!-- webkitdirectory属性でフォルダ選択に対応 -->
+        <input type="file" id="inputA" webkitdirectory directory multiple>
+      </div>
+
+      <!-- フォルダBのドラッグ＆ドロップ領域 -->
+      <div class="dropzone" id="dropzoneB">
+        <div class="icon">📁</div>
+        <h3 id="labelB">フォルダ B を選択</h3>
+        <p>クリックしてフォルダを選択</p>
+        <input type="file" id="inputB" webkitdirectory directory multiple>
+      </div>
+    </main>
+
+    <div class="action-area">
+      <button class="btn-primary" id="compareBtn" disabled>▶ 比較開始</button>
+      <div class="status-bar" id="statusBar">フォルダ A と フォルダ B をそれぞれ選択してください。</div>
+    </div>
+
+    <!-- 結果セクション -->
+    <section class="results-card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tabA">
+          🔴 Aのみ <span class="badge" id="badgeA">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tabB">
+          🟢 Bのみ <span class="badge" id="badgeB">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tabRen">
+          🟡 リネームの可能性 <span class="badge" id="badgeRen">0</span>
+        </button>
+      </div>
+
+      <!-- Aのみタブの中身 -->
+      <div class="tab-content active" id="tabA">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <div>比較結果はありません</div>
+        </div>
+      </div>
+
+      <!-- Bのみタブの中身 -->
+      <div class="tab-content" id="tabB">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <div>比較結果はありません</div>
+        </div>
+      </div>
+
+      <!-- リネーム可能性タブの中身 -->
+      <div class="tab-content" id="tabRen">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <div>比較結果はありません</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
