@@ -244,6 +244,12 @@ header p {
   text-align: center;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Results Notebook */
 .results-card {
   background: var(--panel);

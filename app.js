@@ -13,6 +13,7 @@ const labelA = document.getElementById('labelA');
 const labelB = document.getElementById('labelB');
 const compareBtn = document.getElementById('compareBtn');
 const statusBar = document.getElementById('statusBar');
+const spinner = document.getElementById('spinner');
 
 const tabA = document.getElementById('tabA');
 const tabB = document.getElementById('tabB');
@@ -33,6 +34,16 @@ inputB.addEventListener('change', (e) => handleFileSelect(e, 'B'));
 // ドラッグ＆ドロップ関連イベントリスナーの設定
 setupDragAndDrop(dropzoneA, 'A');
 setupDragAndDrop(dropzoneB, 'B');
+
+function showLoading(msg) {
+  spinner.style.display = 'block';
+  statusBar.innerText = msg;
+}
+
+function hideLoading(msg) {
+  spinner.style.display = 'none';
+  if (msg) statusBar.innerText = msg;
+}
 
 function setupDragAndDrop(zone, target) {
   // ドラッグ進入・移動時のデフォルト挙動を抑制してハイライト
@@ -56,7 +67,7 @@ function setupDragAndDrop(zone, target) {
     const items = e.dataTransfer.items;
     const rawFiles = e.dataTransfer.files;
     
-    statusBar.innerText = `${target === 'A' ? 'フォルダ A' : 'フォルダ B'} をスキャン中...`;
+    showLoading(`${target === 'A' ? 'フォルダ A' : 'フォルダ B'} をスキャン中...`);
 
     // 1. webkitGetAsEntry を優先使用（フォルダ構造を正しく再現するため）
     let item = null;
@@ -77,7 +88,6 @@ function setupDragAndDrop(zone, target) {
       // フォルダ構造を持つファイル群をパース
       for (let i = 0; i < rawFiles.length; i++) {
         const file = rawFiles[i];
-        // webkitRelativePath がある場合はそちらからフォルダ名を特定
         const fullPath = file.webkitRelativePath || file.name;
         const parts = fullPath.split('/');
         
@@ -90,7 +100,6 @@ function setupDragAndDrop(zone, target) {
             size: file.size
           });
         } else {
-          // パスが取れない場合は単なるファイルとして登録
           fileDataList.push({
             name: file.name,
             relPath: file.name,
@@ -101,7 +110,7 @@ function setupDragAndDrop(zone, target) {
 
       applyFolderData(target, rootName, fileDataList, zone);
     } else {
-      statusBar.innerText = '⚠ フォルダの読み込みに失敗しました。';
+      hideLoading('⚠ フォルダの読み込みに失敗しました。');
     }
   }, false);
 }
@@ -120,7 +129,7 @@ function applyFolderData(target, rootName, fileDataList, zone) {
     zone.classList.add('loaded');
     zone.querySelector('p').innerHTML = `${filesB.length} 個のファイルが読み込まれました`;
   }
-  statusBar.innerText = `${rootName} の読み込みが完了しました。`;
+  hideLoading(`${rootName} の読み込みが完了しました。`);
   checkReadyState();
 }
 
@@ -226,7 +235,7 @@ const PAGE_SIZE = 100;
 
 // 比較処理
 compareBtn.addEventListener('click', () => {
-  statusBar.innerText = '差分を計算中...';
+  showLoading('差分を計算中...');
   
   // レンダリングラグを防ぐため一時的に遅延させてUIを描画
   setTimeout(() => {
@@ -295,7 +304,7 @@ compareBtn.addEventListener('click', () => {
 
     updateLoadMoreButton();
 
-    statusBar.innerText = `✅ 比較完了 | Aのみ: ${resultsData.tabA.length}件 | Bのみ: ${resultsData.tabB.length}件 | リネーム: ${resultsData.tabRen.length}件`;
+    hideLoading(`✅ 比較完了 | Aのみ: ${resultsData.tabA.length}件 | Bのみ: ${resultsData.tabB.length}件 | リネーム: ${resultsData.tabRen.length}件`);
   }, 50);
 });
 
