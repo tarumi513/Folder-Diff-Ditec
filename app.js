@@ -268,10 +268,35 @@ compareBtn.addEventListener('click', () => {
       }
     });
 
-    // リネーム可能性（AとBの両方に同一サイズが存在し、かつファイル名が異なるもの）
+    // リネームおよびフォルダ内での重複コピー可能性
     resultsData.tabRen = [];
-    const commonSizes = sizesA.filter(size => sizesB.has(size));
 
+    // 1. フォルダA内単体での重複コピー検出
+    sizesA.forEach(size => {
+      const listA = mapA[size];
+      if (listA.length > 1) {
+        resultsData.tabRen.push({
+          type: 'dupA',
+          size: parseInt(size),
+          paths: listA.map(f => f.relPath)
+        });
+      }
+    });
+
+    // 2. フォルダB内単体での重複コピー検出
+    sizesBArr.forEach(size => {
+      const listB = mapB[size];
+      if (listB.length > 1) {
+        resultsData.tabRen.push({
+          type: 'dupB',
+          size: parseInt(size),
+          paths: listB.map(f => f.relPath)
+        });
+      }
+    });
+
+    // 3. フォルダAとフォルダBの間のリネーム検出
+    const commonSizes = sizesA.filter(size => sizesB.has(size));
     commonSizes.forEach(size => {
       const listA = mapA[size];
       const listB = mapB[size];
@@ -279,8 +304,10 @@ compareBtn.addEventListener('click', () => {
       const namesA = new Set(listA.map(f => f.name));
       const namesB = new Set(listB.map(f => f.name));
 
+      // 名前が完全に一致していない ＝ AとBでファイル名変更（リネーム）がある
       if (!isSetEqual(namesA, namesB)) {
         resultsData.tabRen.push({
+          type: 'rename',
           size: parseInt(size),
           pathsA: listA.map(f => f.relPath),
           pathsB: listB.map(f => f.relPath)
@@ -304,7 +331,7 @@ compareBtn.addEventListener('click', () => {
 
     updateLoadMoreButton();
 
-    hideLoading(`✅ 比較完了 | Aのみ: ${resultsData.tabA.length}件 | Bのみ: ${resultsData.tabB.length}件 | リネーム: ${resultsData.tabRen.length}件`);
+    hideLoading(`✅ 比較完了 | Aのみ: ${resultsData.tabA.length}件 | Bのみ: ${resultsData.tabB.length}件 | リネーム・コピー: ${resultsData.tabRen.length}件`);
   }, 50);
 });
 
@@ -374,18 +401,45 @@ function renderTabResults(tabId, isNew = false) {
         </div>
       `;
     } else if (tabId === 'tabRen') {
-      html += `
-        <div class="result-item tab-ren">
-          <div class="rename-pair">
-            <div class="filepath"><span class="rename-label">[A]</span>${item.pathsA.join(', ')}</div>
-            <div class="divider"></div>
-            <div class="filepath"><span class="rename-label">[B]</span>${item.pathsB.join(', ')}</div>
+      if (item.type === 'dupA') {
+        html += `
+          <div class="result-item tab-ren" style="border-left: 4px solid var(--red);">
+            <div style="font-size: 0.8rem; color: var(--red); margin-bottom: 0.25rem; font-weight: bold;">[フォルダ A内でのコピー・重複]</div>
+            <div class="rename-pair">
+              ${item.paths.map(p => `<div class="filepath">${p}</div>`).join('<div class="divider"></div>')}
+            </div>
+            <div class="file-meta" style="margin-top: 0.5rem;">
+              <span>⚖ 同一容量: ${formatBytes(item.size)}</span>
+            </div>
           </div>
-          <div class="file-meta" style="margin-top: 0.5rem;">
-            <span>⚖ 同一容量: ${formatBytes(item.size)}</span>
+        `;
+      } else if (item.type === 'dupB') {
+        html += `
+          <div class="result-item tab-ren" style="border-left: 4px solid var(--green);">
+            <div style="font-size: 0.8rem; color: var(--green); margin-bottom: 0.25rem; font-weight: bold;">[フォルダ B内でのコピー・重複]</div>
+            <div class="rename-pair">
+              ${item.paths.map(p => `<div class="filepath">${p}</div>`).join('<div class="divider"></div>')}
+            </div>
+            <div class="file-meta" style="margin-top: 0.5rem;">
+              <span>⚖ 同一容量: ${formatBytes(item.size)}</span>
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      } else if (item.type === 'rename') {
+        html += `
+          <div class="result-item tab-ren">
+            <div style="font-size: 0.8rem; color: var(--yellow); margin-bottom: 0.25rem; font-weight: bold;">[フォルダ間でのリネーム]</div>
+            <div class="rename-pair">
+              <div class="filepath"><span class="rename-label">[A]</span>${item.pathsA.join(', ')}</div>
+              <div class="divider"></div>
+              <div class="filepath"><span class="rename-label">[B]</span>${item.pathsB.join(', ')}</div>
+            </div>
+            <div class="file-meta" style="margin-top: 0.5rem;">
+              <span>⚖ 同一容量: ${formatBytes(item.size)}</span>
+            </div>
+          </div>
+        `;
+      }
     }
   }
 
