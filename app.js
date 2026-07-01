@@ -54,38 +54,74 @@ function setupDragAndDrop(zone, target) {
   // ドロップ時のファイル解析
   zone.addEventListener('drop', async (e) => {
     const items = e.dataTransfer.items;
-    if (!items || items.length === 0) return;
-
-    statusBar.innerText = `${target === 'A' ? 'フォルダ A' : 'フォルダ B'} をスキャン中...`;
+    const rawFiles = e.dataTransfer.files;
     
-    // 最初のアイテムをエントリ（ファイルまたはディレクトリ）として取得
-    const item = items[0].webkitGetAsEntry();
-    if (!item) return;
+    statusBar.innerText = `${target === 'A' ? 'フォルダ A' : 'フォルダ B'} をスキャン中...`;
 
-    if (item.isDirectory) {
-      // フォルダ名をルートフォルダ名にする
+    // 1. webkitGetAsEntry を優先使用（フォルダ構造を正しく再現するため）
+    let item = null;
+    if (items && items.length > 0) {
+      item = items[0].webkitGetAsEntry();
+    }
+
+    if (item && item.isDirectory) {
       const rootName = item.name;
       const fileDataList = await scanDirectory(item, "");
+      applyFolderData(target, rootName, fileDataList, zone);
+    } 
+    // 2. webkitGetAsEntryが失敗または非対応の場合のフォールバック (e.dataTransfer.files)
+    else if (rawFiles && rawFiles.length > 0) {
+      const fileDataList = [];
+      let rootName = "選択フォルダ";
 
-      if (target === 'A') {
-        filesA = fileDataList;
-        nameA = rootName;
-        labelA.innerText = `A: ${rootName}`;
-        zone.classList.add('loaded');
-        zone.querySelector('p').innerHTML = `${filesA.length} 個のファイルが読み込まれました`;
-      } else {
-        filesB = fileDataList;
-        nameB = rootName;
-        labelB.innerText = `B: ${rootName}`;
-        zone.classList.add('loaded');
-        zone.querySelector('p').innerHTML = `${filesB.length} 個のファイルが読み込まれました`;
+      // フォルダ構造を持つファイル群をパース
+      for (let i = 0; i < rawFiles.length; i++) {
+        const file = rawFiles[i];
+        // webkitRelativePath がある場合はそちらからフォルダ名を特定
+        const fullPath = file.webkitRelativePath || file.name;
+        const parts = fullPath.split('/');
+        
+        if (parts.length > 1) {
+          rootName = parts[0];
+          const relPath = fullPath.substring(fullPath.indexOf('/') + 1);
+          fileDataList.push({
+            name: file.name,
+            relPath: relPath,
+            size: file.size
+          });
+        } else {
+          // パスが取れない場合は単なるファイルとして登録
+          fileDataList.push({
+            name: file.name,
+            relPath: file.name,
+            size: file.size
+          });
+        }
       }
-      statusBar.innerText = `${rootName} の読み込みが完了しました。`;
-      checkReadyState();
+
+      applyFolderData(target, rootName, fileDataList, zone);
     } else {
-      statusBar.innerText = '⚠ フォルダをドロップしてください（ファイル単体は比較できません）。';
+      statusBar.innerText = '⚠ フォルダの読み込みに失敗しました。';
     }
   }, false);
+}
+
+function applyFolderData(target, rootName, fileDataList, zone) {
+  if (target === 'A') {
+    filesA = fileDataList;
+    nameA = rootName;
+    labelA.innerText = `A: ${rootName}`;
+    zone.classList.add('loaded');
+    zone.querySelector('p').innerHTML = `${filesA.length} 個のファイルが読み込まれました`;
+  } else {
+    filesB = fileDataList;
+    nameB = rootName;
+    labelB.innerText = `B: ${rootName}`;
+    zone.classList.add('loaded');
+    zone.querySelector('p').innerHTML = `${filesB.length} 個のファイルが読み込まれました`;
+  }
+  statusBar.innerText = `${rootName} の読み込みが完了しました。`;
+  checkReadyState();
 }
 
 // FileSystemDirectoryEntry を再帰的にスキャンしてファイル名・相対パス・サイズを収集する関数
@@ -139,8 +175,6 @@ function handleFileSelect(event, target) {
 
   // ファイル名とサイズのリストを生成
   const fileData = files.map(file => {
-    // webkitRelativePathは "フォルダ名/サブフォルダ名/ファイル名.txt" のようになるので、
-    // フォルダ名以降の相対パスを抽出
     const fullPath = file.webkitRelativePath || file.name;
     const relPath = fullPath.substring(fullPath.indexOf('/') + 1);
     return {
@@ -176,66 +210,105 @@ function checkReadyState() {
   }
 }
 
+// 比較結果の内部キャッシュ（Paging処理用）
+let activeTab = 'tabA';
+let resultsData = {
+  tabA: [],  // [{relPath, size}]
+  tabB: [],  // [{relPath, size}]
+  tabRen: [] // [{pathsA, pathsB, size}]
+};
+let visibleCounts = {
+  tabA: 0,
+  tabB: 0,
+  tabRen: 0
+};
+const PAGE_SIZE = 100;
+
 // 比較処理
 compareBtn.addEventListener('click', () => {
   statusBar.innerText = '差分を計算中...';
   
-  // サイズマップを構築 { size: [fileData, ...] }
-  const mapA = buildSizeMap(filesA);
-  const mapB = buildSizeMap(filesB);
+  // レンダリングラグを防ぐため一時的に遅延させてUIを描画
+  setTimeout(() => {
+    // サイズマップを構築 { size: [fileData, ...] }
+    const mapA = buildSizeMap(filesA);
+    const mapB = buildSizeMap(filesB);
 
-  const sizesA = new Set(Object.keys(mapA));
-  const sizesB = new Set(Object.keys(mapB));
+    const sizesA = Object.keys(mapA);
+    const sizesB = new Set(Object.keys(mapB));
 
-  // Aにしかないサイズ
-  const onlyInA = [];
-  for (const size of sizesA) {
-    if (!sizesB.has(size)) {
-      onlyInA.push({ size: parseInt(size), files: mapA[size] });
-    }
-  }
+    // Aにしかないサイズ
+    resultsData.tabA = [];
+    sizesA.forEach(size => {
+      if (!sizesB.has(size)) {
+        mapA[size].forEach(f => {
+          resultsData.tabA.push({ relPath: f.relPath, size: f.size });
+        });
+      }
+    });
 
-  // Bにしかないサイズ
-  const onlyInB = [];
-  for (const size of sizesB) {
-    if (!sizesA.has(size)) {
-      onlyInB.push({ size: parseInt(size), files: mapB[size] });
-    }
-  }
+    // Bにしかないサイズ
+    resultsData.tabB = [];
+    const sizesBArr = Object.keys(mapB);
+    const sizesASet = new Set(sizesA);
+    sizesBArr.forEach(size => {
+      if (!sizesASet.has(size)) {
+        mapB[size].forEach(f => {
+          resultsData.tabB.push({ relPath: f.relPath, size: f.size });
+        });
+      }
+    });
 
-  // リネーム可能性（AとBの両方に同一サイズが存在し、かつファイル名が異なるもの）
-  const renamed = [];
-  const commonSizes = [...sizesA].filter(size => sizesB.has(size));
+    // リネーム可能性（AとBの両方に同一サイズが存在し、かつファイル名が異なるもの）
+    resultsData.tabRen = [];
+    const commonSizes = sizesA.filter(size => sizesB.has(size));
 
-  for (const size of commonSizes) {
-    const listA = mapA[size];
-    const listB = mapB[size];
+    commonSizes.forEach(size => {
+      const listA = mapA[size];
+      const listB = mapB[size];
 
-    const namesA = new Set(listA.map(f => f.name));
-    const namesB = new Set(listB.map(f => f.name));
+      const namesA = new Set(listA.map(f => f.name));
+      const namesB = new Set(listB.map(f => f.name));
 
-    // ファイル名セットが一致しない ＝ 名前に違い（リネーム）がある
-    if (!isSetEqual(namesA, namesB)) {
-      renamed.push({
-        size: parseInt(size),
-        pathsA: listA.map(f => f.relPath),
-        pathsB: listB.map(f => f.relPath)
-      });
-    }
-  }
+      if (!isSetEqual(namesA, namesB)) {
+        resultsData.tabRen.push({
+          size: parseInt(size),
+          pathsA: listA.map(f => f.relPath),
+          pathsB: listB.map(f => f.relPath)
+        });
+      }
+    });
 
-  // 結果の表示更新
-  renderResults(onlyInA, onlyInB, renamed);
+    // 初期化
+    visibleCounts.tabA = 0;
+    visibleCounts.tabB = 0;
+    visibleCounts.tabRen = 0;
+
+    badgeA.innerText = resultsData.tabA.length;
+    badgeB.innerText = resultsData.tabB.length;
+    document.getElementById('badgeRen').innerText = resultsData.tabRen.length;
+
+    // 初期描画
+    renderTabResults('tabA', true);
+    renderTabResults('tabB', true);
+    renderTabResults('tabRen', true);
+
+    updateLoadMoreButton();
+
+    statusBar.innerText = `✅ 比較完了 | Aのみ: ${resultsData.tabA.length}件 | Bのみ: ${resultsData.tabB.length}件 | リネーム: ${resultsData.tabRen.length}件`;
+  }, 50);
 });
 
 function buildSizeMap(fileList) {
   const map = {};
-  fileList.forEach(file => {
+  const len = fileList.length;
+  for (let i = 0; i < len; i++) {
+    const file = fileList[i];
     if (!map[file.size]) {
       map[file.size] = [];
     }
     map[file.size].push(file);
-  });
+  }
   return map;
 }
 
@@ -257,66 +330,41 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i] + ` (${bytes.toLocaleString()} バイト)`;
 }
 
-// 結果描画
-function renderResults(onlyA, onlyB, renamed) {
-  // バッジ件数更新
-  const countA = onlyA.reduce((acc, curr) => acc + curr.files.length, 0);
-  const countB = onlyB.reduce((acc, curr) => acc + curr.files.length, 0);
-  const countRen = renamed.length;
+// タブごとの結果描画（Paging対応）
+function renderTabResults(tabId, isNew = false) {
+  const container = document.getElementById(tabId);
+  const data = resultsData[tabId];
+  const startIndex = visibleCounts[tabId];
+  const endIndex = Math.min(startIndex + PAGE_SIZE, data.length);
 
-  badgeA.innerText = countA;
-  badgeB.innerText = countB;
-  badgeRen = countRen; // 更新可能な変数に変更するため、badgeRenの参照を更新
-  document.getElementById('badgeRen').innerText = countRen;
-
-  // Aのみ描画
-  if (countA === 0) {
-    tabA.innerHTML = getEmptyStateHTML();
-  } else {
-    let html = '<div class="result-list">';
-    onlyA.forEach(item => {
-      item.files.forEach(f => {
-        html += `
-          <div class="result-item tab-a">
-            <div class="filepath">📁 Aのみ: ${f.relPath}</div>
-            <div class="file-meta">
-              <span>⚖ 容量: ${formatBytes(f.size)}</span>
-            </div>
-          </div>
-        `;
-      });
-    });
-    html += '</div>';
-    tabA.innerHTML = html;
+  if (data.length === 0) {
+    container.innerHTML = getEmptyStateHTML();
+    return;
   }
 
-  // Bのみ描画
-  if (countB === 0) {
-    tabB.innerHTML = getEmptyStateHTML();
-  } else {
-    let html = '<div class="result-list">';
-    onlyB.forEach(item => {
-      item.files.forEach(f => {
-        html += `
-          <div class="result-item tab-b">
-            <div class="filepath">📁 Bのみ: ${f.relPath}</div>
-            <div class="file-meta">
-              <span>⚖ 容量: ${formatBytes(f.size)}</span>
-            </div>
-          </div>
-        `;
-      });
-    });
-    html += '</div>';
-    tabB.innerHTML = html;
-  }
+  let html = isNew ? '<div class="result-list">' : container.querySelector('.result-list').innerHTML;
 
-  // リネーム描画
-  if (countRen === 0) {
-    tabRen.innerHTML = getEmptyStateHTML();
-  } else {
-    let html = '<div class="result-list">';
-    renamed.forEach(item => {
+  for (let i = startIndex; i < endIndex; i++) {
+    const item = data[i];
+    if (tabId === 'tabA') {
+      html += `
+        <div class="result-item tab-a">
+          <div class="filepath">📁 Aのみ: ${item.relPath}</div>
+          <div class="file-meta">
+            <span>⚖ 容量: ${formatBytes(item.size)}</span>
+          </div>
+        </div>
+      `;
+    } else if (tabId === 'tabB') {
+      html += `
+        <div class="result-item tab-b">
+          <div class="filepath">📁 Bのみ: ${item.relPath}</div>
+          <div class="file-meta">
+            <span>⚖ 容量: ${formatBytes(item.size)}</span>
+          </div>
+        </div>
+      `;
+    } else if (tabId === 'tabRen') {
       html += `
         <div class="result-item tab-ren">
           <div class="rename-pair">
@@ -329,13 +377,39 @@ function renderResults(onlyA, onlyB, renamed) {
           </div>
         </div>
       `;
-    });
-    html += '</div>';
-    tabRen.innerHTML = html;
+    }
   }
 
-  statusBar.innerText = `✅ 比較完了 | Aのみ: ${countA}件 | Bのみ: ${countB}件 | リネーム: ${countRen}件`;
+  if (isNew) {
+    html += '</div>';
+    container.innerHTML = html;
+  } else {
+    container.querySelector('.result-list').innerHTML = html;
+  }
+
+  visibleCounts[tabId] = endIndex;
 }
+
+function updateLoadMoreButton() {
+  const container = document.getElementById('loadMoreContainer');
+  const btnCount = document.getElementById('loadMoreCount');
+  
+  const currentData = resultsData[activeTab];
+  const currentVisible = visibleCounts[activeTab];
+
+  if (currentData && currentVisible < currentData.length) {
+    container.style.display = 'block';
+    btnCount.innerText = currentData.length - currentVisible;
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+// さらに読み込むボタン
+document.getElementById('loadMoreBtn').addEventListener('click', () => {
+  renderTabResults(activeTab, false);
+  updateLoadMoreButton();
+});
 
 function getEmptyStateHTML() {
   return `
@@ -356,7 +430,9 @@ tabButtons.forEach(btn => {
     tabContents.forEach(c => c.classList.remove('active'));
 
     btn.classList.add('active');
-    const targetTabId = btn.getAttribute('data-tab');
-    document.getElementById(targetTabId).classList.add('active');
+    activeTab = btn.getAttribute('data-tab');
+    document.getElementById(activeTab).classList.add('active');
+
+    updateLoadMoreButton();
   });
 });

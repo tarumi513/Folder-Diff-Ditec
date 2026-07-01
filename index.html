@@ -87,6 +87,13 @@
           <div>比較結果はありません</div>
         </div>
       </div>
+
+      <!-- もっと見るボタンコンテナ -->
+      <div id="loadMoreContainer" style="display: none; padding: 1rem; border-top: 1px solid var(--panel-border); text-align: center;">
+        <button class="btn-secondary" id="loadMoreBtn" style="font-family: var(--font-sans); font-size: 0.9rem; font-weight: 600; background: rgba(255,255,255,0.05); color: var(--fg); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 1.5rem; border-radius: 8px; cursor: pointer; transition: var(--transition);">
+          さらに表示する (残り <span id="loadMoreCount">0</span> 件)
+        </button>
+      </div>
     </section>
   </div>
 

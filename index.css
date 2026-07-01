@@ -231,6 +231,12 @@ header p {
   cursor: not-allowed;
 }
 
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: var(--accent) !important;
+  color: white !important;
+}
+
 .status-bar {
   color: var(--fg-dim);
   font-size: 0.95rem;
