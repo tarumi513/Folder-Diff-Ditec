@@ -239,78 +239,117 @@ compareBtn.addEventListener('click', () => {
   
   // レンダリングラグを防ぐため一時的に遅延させてUIを描画
   setTimeout(() => {
-    // サイズマップを構築 { size: [fileData, ...] }
-    const mapA = buildSizeMap(filesA);
-    const mapB = buildSizeMap(filesB);
+    // AとBそれぞれの相対パスごとのマップを構築して高速化 { relPath: size }
+    const pathMapA = {};
+    filesA.forEach(f => { pathMapA[f.relPath] = f.size; });
 
-    const sizesA = Object.keys(mapA);
-    const sizesB = new Set(Object.keys(mapB));
+    const pathMapB = {};
+    filesB.forEach(f => { pathMapB[f.relPath] = f.size; });
 
-    // Aにしかないサイズ
+    // 1. 完全一致（相対パスもサイズも同じ）のファイルをリストから除外
+    const unmatchedA = [];
+    filesA.forEach(f => {
+      if (pathMapB[f.relPath] === f.size) {
+        // 同一ファイルが存在するため除外
+      } else {
+        unmatchedA.push(f);
+      }
+    });
+
+    const unmatchedB = [];
+    filesB.forEach(f => {
+      if (pathMapA[f.relPath] === f.size) {
+        // 同一ファイルが存在するため除外
+      } else {
+        unmatchedB.push(f);
+      }
+    });
+
+    // 2. 残った不一致ファイルをサイズごとにグループ化
+    const sizeMapA = buildSizeMap(unmatchedA);
+    const sizeMapB = buildSizeMap(unmatchedB);
+
+    const allSizes = new Set([...Object.keys(sizeMapA), ...Object.keys(sizeMapB)]);
+
     resultsData.tabA = [];
-    sizesA.forEach(size => {
-      if (!sizesB.has(size)) {
-        mapA[size].forEach(f => {
-          resultsData.tabA.push({ relPath: f.relPath, size: f.size });
-        });
-      }
-    });
-
-    // Bにしかないサイズ
     resultsData.tabB = [];
-    const sizesBArr = Object.keys(mapB);
-    const sizesASet = new Set(sizesA);
-    sizesBArr.forEach(size => {
-      if (!sizesASet.has(size)) {
-        mapB[size].forEach(f => {
-          resultsData.tabB.push({ relPath: f.relPath, size: f.size });
-        });
-      }
-    });
-
-    // リネームおよびフォルダ内での重複コピー可能性
     resultsData.tabRen = [];
 
-    // 1. フォルダA内単体での重複コピー検出
-    sizesA.forEach(size => {
-      const listA = mapA[size];
+    allSizes.forEach(sizeStr => {
+      const size = parseInt(sizeStr);
+      const listA = sizeMapA[size] || [];
+      const listB = sizeMapB[size] || [];
+
+      // 同じ容量を持つファイルが、それぞれ不一致ファイルの中に何個あるか
+      const countA = listA.length;
+      const countB = listB.length;
+
+      // 個数の差分から「Aのみ」「Bのみ」を確定
+      if (countA > countB) {
+        // Aの方が多い ＝ 差分個数分だけ「Aのみに存在する」
+        const diffCount = countA - countB;
+        for (let i = 0; i < diffCount; i++) {
+          resultsData.tabA.push({ relPath: listA[i].relPath, size: size });
+        }
+        // ペアになる分はリネーム候補とする
+        if (countB > 0) {
+          resultsData.tabRen.push({
+            type: 'rename',
+            size: size,
+            pathsA: listA.slice(diffCount).map(f => f.relPath),
+            pathsB: listB.map(f => f.relPath)
+          });
+        }
+      } else if (countB > countA) {
+        // Bの方が多い ＝ 差分個数分だけ「Bのみに存在する」
+        const diffCount = countB - countA;
+        for (let i = 0; i < diffCount; i++) {
+          resultsData.tabB.push({ relPath: listB[i].relPath, size: size });
+        }
+        // ペアになる分はリネーム候補とする
+        if (countA > 0) {
+          resultsData.tabRen.push({
+            type: 'rename',
+            size: size,
+            pathsA: listA.map(f => f.relPath),
+            pathsB: listB.slice(diffCount).map(f => f.relPath)
+          });
+        }
+      } else {
+        // 個数が同じだがパスが異なる ＝ すべてリネーム候補
+        if (countA > 0) {
+          resultsData.tabRen.push({
+            type: 'rename',
+            size: size,
+            pathsA: listA.map(f => f.relPath),
+            pathsB: listB.map(f => f.relPath)
+          });
+        }
+      }
+    });
+
+    // 4. 同一フォルダ単体内での重複コピー検出（全ファイル対象）
+    const fullSizeMapA = buildSizeMap(filesA);
+    const fullSizeMapB = buildSizeMap(filesB);
+
+    Object.keys(fullSizeMapA).forEach(sizeStr => {
+      const listA = fullSizeMapA[sizeStr];
       if (listA.length > 1) {
         resultsData.tabRen.push({
           type: 'dupA',
-          size: parseInt(size),
+          size: parseInt(sizeStr),
           paths: listA.map(f => f.relPath)
         });
       }
     });
 
-    // 2. フォルダB内単体での重複コピー検出
-    sizesBArr.forEach(size => {
-      const listB = mapB[size];
+    Object.keys(fullSizeMapB).forEach(sizeStr => {
+      const listB = fullSizeMapB[sizeStr];
       if (listB.length > 1) {
         resultsData.tabRen.push({
           type: 'dupB',
-          size: parseInt(size),
+          size: parseInt(sizeStr),
           paths: listB.map(f => f.relPath)
-        });
-      }
-    });
-
-    // 3. フォルダAとフォルダBの間のリネーム検出
-    const commonSizes = sizesA.filter(size => sizesB.has(size));
-    commonSizes.forEach(size => {
-      const listA = mapA[size];
-      const listB = mapB[size];
-
-      const namesA = new Set(listA.map(f => f.name));
-      const namesB = new Set(listB.map(f => f.name));
-
-      // 名前が完全に一致していない ＝ AとBでファイル名変更（リネーム）がある
-      if (!isSetEqual(namesA, namesB)) {
-        resultsData.tabRen.push({
-          type: 'rename',
-          size: parseInt(size),
-          pathsA: listA.map(f => f.relPath),
-          pathsB: listB.map(f => f.relPath)
         });
       }
     });
